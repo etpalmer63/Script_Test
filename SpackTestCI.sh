@@ -1,9 +1,22 @@
-#!/bin/bash -x
+#!/bin/bash
+
+# This script tests the AMReX smoke test in Spack. If a Spack directory
+# does not exist, it will clone one from GitHub. Then it will install
+# the latest development version of Amrex and run the Spack smoke test.
+# Afterwards it will remove the test results, and uninstall only AMReX. 
+# Leaving the dependencies installed will speed up subsequent runs.
+# 
+# There is another script SpackTestCI_SpackUpdate.sh that can be 
+# run periodically so that this test will use the latest Spack 
+# development branch.
+#
+# Erik Palmer
+
 
 
 DIR_DATE="$(date +"%Y-%m-%d")"
 
-# If directory exists append num to end
+# If test directory exists, append num to end
 TEST_DIR=$DIR_DATE
 if [ -d $TEST_DIR ]
 then
@@ -15,16 +28,14 @@ then
         TEST_DIR=${DIR_DATE}_${APPEND_NUM}
     done
 fi
-
 mkdir $TEST_DIR
 
 
-exec 3>&1 4>&2
-exec 1>SpackTestCI.out 2>SpackTestCI.err
+#exec 3>&1 4>&2
+#exec 1>${TEST_DIR}/SpackTestCI.out 2>${TEST_DIR}/SpackTestCI.err
 
 echo "Regression test for AMReX Spack smoke test."
-
-start_time=$(date +%s.%N)
+START_TIME=$(date +%s.%N)
 
 
 if [ ! -d "./spack" ]
@@ -33,26 +44,30 @@ then
 fi
 
 cd spack
-
 . ./share/spack/setup-env.sh
-
 spack install amrex@develop
-
 spack test run --alias amrex_smoke_test amrex
+#spack test results -l amrex_smoke_test
 
-if [ grep -q $(spack test results -l amrex_smoke_test) "finalized" ]
+if [ $(spack test results -l amrex_smoke_test | grep -q "finalized") ]
 then
-    result="PASSED"
+    RESULT="PASSED"
 else
-    result="FAILED"
+    RESULT="FAILED"
 fi
 
-run_time=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $start_time" | bc)`
+
+# Clean up all spack tests.
+spack test remove --yes-to-all
+# Remove amrex but leave other packages to speed up next test.
+spack uninstall --yes-to-all amrex
+
+RUN_TIME=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $START_TIME" | bc)`
 
 
+echo "Test Result: $RESULT"
+echo "Runtime: $RUN_TIME"
 
-echo "Runtime: $run_time"
 
-exec 1>SpackTestCI.status
-
-echo "Status"
+#exec 1>$TEST_DIR/SpackTestCI.status
+echo "$RESULT"
