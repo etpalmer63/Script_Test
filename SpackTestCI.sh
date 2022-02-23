@@ -13,63 +13,66 @@
 # Erik Palmer 
 # <epalmer@lbl.gov>
 
+SPACK_TEST_ROOT_DIR=/home/epalmer/SpackTestRoot
 
+pushd $SPACK_TEST_ROOT_DIR
 
-DIR_DATE="$(date +"%Y_%m_%d")"
-
-# If test directory exists, append num to end
-TEST_DIR=$DIR_DATE
-if [ -d $TEST_DIR ]
-then
-    i=0
-    while [ -d $TEST_DIR ]
-    do
-        let i++
-        APPEND_NUM=`printf "%03d" $i`
-        TEST_DIR=${DIR_DATE}_${APPEND_NUM}
-    done
-fi
-mkdir $TEST_DIR
-
-
-# log output and errors
-exec 1>${TEST_DIR}/SpackTestCI.out 2>${TEST_DIR}/SpackTestCI.err
-
-echo "Regression test for AMReX Spack smoke test."
-START_TIME=$(date +%s.%N)
-
-
-if [ ! -d "./spack" ]
-then
-    git clone https://github.com/spack/spack.git
-fi
-
-# Initates the Spack shell wrapper
-cd spack
-. ./share/spack/setup-env.sh
-cd ..
-spack install amrex@develop
-spack test run --alias amrex_smoke_test amrex
-spack test results -l amrex_smoke_test
-
-# Don't trust the Spack pass/fail, instead
-# search the output ourselves.
-if (spack test results -l amrex_smoke_test | grep -q "finalized")
-then
-    RESULT="PASSED"
-else
-    RESULT="FAILED"
-fi
-
-# Clean up all spack tests.
-spack test remove --yes-to-all
-# Remove amrex but leave other packages to speed up next test.
-spack uninstall --yes-to-all amrex
-
-
-RUN_TIME=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $START_TIME" | bc)`
-
-echo "Test Result: $RESULT"
-echo "Runtime: $RUN_TIME"
-
-echo "$RESULT">"${TEST_DIR}/SpackTestCI.status"
+    DIR_DATE="$(date +"%Y_%m_%d")"
+    
+    # If test directory exists, append num to end
+    TEST_DIR=$DIR_DATE
+    if [ -d $TEST_DIR ]
+    then
+        i=0
+        while [ -d $TEST_DIR ]
+        do
+            let i++
+            APPEND_NUM=`printf "%03d" $i`
+            TEST_DIR=${DIR_DATE}_${APPEND_NUM}
+        done
+    fi
+    mkdir $TEST_DIR
+    
+    
+    # log output and errors
+    exec 1> >(tee -a ${TEST_DIR}/SpackTestCI.out) 2> >(tee -a ${TEST_DIR}/SpackTestCI.err)
+    
+    echo "Regression test for AMReX Spack smoke test."
+    START_TIME=$(date +%s.%N)
+    
+    
+    if [ ! -d "./spack" ]
+    then
+        git clone https://github.com/spack/spack.git
+    fi
+    # Initates the Spack shell wrapper
+    cd spack
+    . ./share/spack/setup-env.sh
+    cd ..
+    spack install amrex@develop
+    spack test run --alias amrex_smoke_test amrex
+    spack test results -l amrex_smoke_test
+    
+    # Don't trust the Spack pass/fail, instead
+    # search the output ourselves.
+    if (spack test results -l amrex_smoke_test | grep -q "finalized")
+    then
+        RESULT="PASSED"
+    else
+        RESULT="FAILED"
+    fi
+    
+    # Clean up all spack tests.
+    spack test remove --yes-to-all
+    # Remove amrex but leave other packages to speed up next test.
+    spack uninstall --yes-to-all amrex
+    
+    
+    RUN_TIME=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $START_TIME" | bc)`
+    
+    echo "Test Result: $RESULT"
+    echo "Runtime: $RUN_TIME"
+    
+    echo "$RESULT">"${TEST_DIR}/SpackTestCI.status"
+    
+popd
