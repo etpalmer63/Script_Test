@@ -1,26 +1,17 @@
 #!/bin/bash set -e
 
+# This script removes the spack folder to 
 
-exec 1>UpdateSpack.out 2>UpdateSpack.err
-
-echo "Update Spack."
-
-#start_time=$(date +%s.%N) 
-
+echo "Replace Spack folder."
 
 if [ ! -d "./spack" ]
 then
     echo "Cannot find spack directory!"
     exit 1
+else
+    rm -rf spack
+    git clone https://github.com/spack/spack.git
 fi
 
-rm -rf spack
-git clone https://github.com/spack/spack.git
-cd spack
-
-
-#run_time=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $start_time" | bc)`
-
-#echo "Runtime: $run_time"
 
 

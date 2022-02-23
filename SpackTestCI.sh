@@ -10,11 +10,12 @@
 # run periodically so that this test will use the latest Spack 
 # development branch.
 #
-# Erik Palmer
+# Erik Palmer 
+# <epalmer@lbl.gov>
 
 
 
-DIR_DATE="$(date +"%Y-%m-%d")"
+DIR_DATE="$(date +"%Y_%m_%d")"
 
 # If test directory exists, append num to end
 TEST_DIR=$DIR_DATE
@@ -31,8 +32,8 @@ fi
 mkdir $TEST_DIR
 
 
-#exec 3>&1 4>&2
-#exec 1>${TEST_DIR}/SpackTestCI.out 2>${TEST_DIR}/SpackTestCI.err
+# log output and errors
+exec 1>${TEST_DIR}/SpackTestCI.out 2>${TEST_DIR}/SpackTestCI.err
 
 echo "Regression test for AMReX Spack smoke test."
 START_TIME=$(date +%s.%N)
@@ -43,31 +44,32 @@ then
     git clone https://github.com/spack/spack.git
 fi
 
+# Initates the Spack shell wrapper
 cd spack
 . ./share/spack/setup-env.sh
+cd ..
 spack install amrex@develop
 spack test run --alias amrex_smoke_test amrex
-#spack test results -l amrex_smoke_test
+spack test results -l amrex_smoke_test
 
-if [ $(spack test results -l amrex_smoke_test | grep -q "finalized") ]
+# Don't trust the Spack pass/fail, instead
+# search the output ourselves.
+if (spack test results -l amrex_smoke_test | grep -q "finalized")
 then
     RESULT="PASSED"
 else
     RESULT="FAILED"
 fi
 
-
 # Clean up all spack tests.
 spack test remove --yes-to-all
 # Remove amrex but leave other packages to speed up next test.
 spack uninstall --yes-to-all amrex
 
-RUN_TIME=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $START_TIME" | bc)`
 
+RUN_TIME=`printf "%.2f seconds" $(echo "$(date +%s.%N) - $START_TIME" | bc)`
 
 echo "Test Result: $RESULT"
 echo "Runtime: $RUN_TIME"
 
-
-#exec 1>$TEST_DIR/SpackTestCI.status
-echo "$RESULT"
+echo "$RESULT">"${TEST_DIR}/SpackTestCI.status"
